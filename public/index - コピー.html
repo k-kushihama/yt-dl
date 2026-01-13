@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Extraction Terminal | SnapLynk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505;
+            --surface-color: #111111;
+            --accent-color: #ffffff;
+            --muted-color: #666666;
+            --error-color: #ff4444;
+            --ease: cubic-bezier(0.23, 1, 0.32, 1);
+            --transition-slow: 0.6s var(--ease);
+            --transition-fast: 0.2s var(--ease);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--accent-color);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 480px;
+            text-align: center;
+            z-index: 10;
+        }
+
+        .brand-logo {
+            font-weight: 200;
+            font-size: 0.75rem;
+            letter-spacing: 0.6em;
+            text-transform: uppercase;
+            color: var(--muted-color);
+            margin-bottom: 60px;
+            pointer-events: none;
+        }
+
+        /* 入力セクション */
+        .input-wrapper {
+            position: relative;
+            margin-bottom: 40px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid #333;
+            color: var(--accent-color);
+            font-size: 1.1rem;
+            padding: 12px 0;
+            outline: none;
+            transition: var(--transition-slow);
+            text-align: center;
+        }
+
+        input[type="text"]:focus {
+            border-bottom-color: var(--accent-color);
+        }
+
+        /* セレクター共通設定 */
+        .selector-group {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            transition: var(--transition-slow);
+        }
+
+        .format-group { margin-bottom: 20px; }
+        
+        .quality-group { 
+            margin-bottom: 50px;
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* WAV選択時にQualityを隠すUX設定 */
+        .quality-group.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-5px);
+        }
+
+        .selector-item {
+            font-size: 0.65rem;
+            letter-spacing: 0.2em;
+            color: var(--muted-color);
+            cursor: pointer;
+            padding: 8px 0;
+            transition: var(--transition-fast);
+            position: relative;
+        }
+
+        .selector-item.active {
+            color: var(--accent-color);
+        }
+
+        .selector-item.active::after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: var(--accent-color);
+        }
+
+        /* 進捗表示 */
+        .progress-container {
+            height: 60px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: var(--transition-slow);
+        }
+
+        .progress-container.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .status-label {
+            font-size: 0.6rem;
+            letter-spacing: 0.15em;
+            color: var(--muted-color);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 2px;
+            background: #222;
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: var(--accent-color);
+            transition: width 0.4s ease-out;
+        }
+
+        /* 実行ボタン */
+        .exec-button {
+            background: var(--accent-color);
+            color: var(--bg-color);
+            border: none;
+            padding: 18px 50px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            transition: var(--transition-slow);
+            width: 100%;
+        }
+
+        .exec-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .exec-button:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .exec-button:disabled {
+            background: var(--surface-color);
+            color: var(--muted-color);
+            cursor: not-allowed;
+        }
+
+        /* フッター */
+        .footer {
+            position: fixed;
+            bottom: 40px;
+            font-size: 0.6rem;
+            color: #333;
+            letter-spacing: 0.1em;
+        }
+
+        /* 背景装飾 */
+        .glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, rgba(0,0,0,0) 70%);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="glow"></div>
+
+    <div class="container">
+        <div class="brand-logo">Asset Extraction Terminal</div>
+
+        <div class="input-wrapper">
+            <input type="text" id="targetUrl" placeholder="PASTE YOUTUBE URL" autocomplete="off">
+        </div>
+
+        <div class="selector-group format-group">
+            <div class="selector-item format-item" id="fmt-mp4" onclick="selectFormat('mp4')">MP4 / VIDEO</div>
+            <div class="selector-item format-item" id="fmt-wav" onclick="selectFormat('wav')">WAV / AUDIO</div>
+        </div>
+
+        <div class="selector-group quality-group" id="qualityArea">
+            <div class="selector-item quality-item" id="q-720" onclick="selectQuality('720')">720P</div>
+            <div class="selector-item quality-item" id="q-1080" onclick="selectQuality('1080')">1080P</div>
+        </div>
+
+        <div class="progress-container" id="progressArea">
+            <div class="status-label" id="statusLabel">Initializing</div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <button class="exec-button" id="execBtn" onclick="initiateExtraction()">EXECUTE</button>
+    </div>
+
+    <div class="footer">
+        &copy; 2026 SnapLynk Co.,Ltd. All Rights Reserved．
+    </div>
+
+    <script>
+        let selectedFormat = 'mp4';
+        let selectedQuality = '1080';
+        
+        // 1. 設定の初期化（Cookieの読み込み）
+        window.addEventListener('DOMContentLoaded', () => {
+            // フォーマット復元
+            const savedFormat = document.cookie.split('; ').find(row => row.startsWith('pref_fmt='));
+            if (savedFormat) {
+                selectFormat(savedFormat.split('=')[1]);
+            } else {
+                selectFormat('mp4');
+            }
+
+            // 解像度復元
+            const savedQuality = document.cookie.split('; ').find(row => row.startsWith('pref_q='));
+            if (savedQuality) {
+                selectQuality(savedQuality.split('=')[1]);
+            } else {
+                selectQuality('1080');
+            }
+
+            // 2. 進捗状況のリアルタイム監視（SSE）
+            const evtSource = new EventSource("/api/progress");
+            evtSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                updateProgress(data.progress, data.status);
+            };
+        });
+
+        // フォーマット選択
+        function selectFormat(fmt) {
+            selectedFormat = fmt;
+            document.querySelectorAll('.format-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`fmt-${fmt}`).classList.add('active');
+            
+            // WAVの時はQualityを非表示にする
+            const qArea = document.getElementById('qualityArea');
+            if (fmt === 'wav') {
+                qArea.classList.add('hidden');
+            } else {
+                qArea.classList.remove('hidden');
+            }
+            
+            document.cookie = `pref_fmt=${fmt}; max-age=${60*60*24*30}; path=/`;
+        }
+
+        // 解像度選択
+        function selectQuality(q) {
+            selectedQuality = q;
+            document.querySelectorAll('.quality-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`q-${q}`).classList.add('active');
+            
+            document.cookie = `pref_q=${q}; max-age=${60*60*24*30}; path=/`;
+        }
+
+        // 進捗表示の更新
+        function updateProgress(percent, status) {
+            const fill = document.getElementById('progressFill');
+            const label = document.getElementById('statusLabel');
+            fill.style.width = `${percent}%`;
+            label.innerText = `${status} : ${percent}%`;
+        }
+
+        // 抽出処理の開始
+        async function initiateExtraction() {
+            const urlInput = document.getElementById('targetUrl');
+            const url = urlInput.value.trim();
+            if (!url) return;
+
+            const btn = document.getElementById('execBtn');
+            const progressArea = document.getElementById('progressArea');
+
+            // UIのロック
+            btn.disabled = true;
+            btn.innerText = 'PROCESSING...';
+            progressArea.classList.add('visible');
+            updateProgress(0, 'Connecting');
+
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        url, 
+                        type: selectedFormat,
+                        quality: selectedQuality // 修正：解像度を送信
+                    })
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok．');
+
+                const disposition = response.headers.get('Content-Disposition');
+                let filename = `extraction.${selectedFormat}`;
+                
+                if (disposition && disposition.includes("filename*=UTF-8''")) {
+                    filename = decodeURIComponent(disposition.split("filename*=UTF-8''")[1]);
+                }
+
+                updateProgress(100, 'Finalizing');
+                const blob = await response.blob();
+                
+                const dlUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = dlUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                
+                btn.innerText = 'COMPLETE';
+                
+            } catch (err) {
+                console.error(err);
+                btn.innerText = 'ERROR';
+                btn.style.color = 'var(--error-color)';
+            } finally {
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerText = 'EXECUTE';
+                    btn.style.color = 'var(--bg-color)';
+                    progressArea.classList.remove('visible');
+                    urlInput.value = '';
+                }, 4000);
+            }
+        }
+    </script>
+</body>
+</html>
